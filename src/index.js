@@ -23,9 +23,10 @@ cloudinary.config({
     api_secret: keys.cloudinary_API_Secret
 })
 
-io.on('connection', socket => {
+io.on('connection', socket => { 
     console.log(`Socket conectado: ${socket.id}`)
 
+    let message = []
     socket.on('sendMessage', data => {
         message.push(data)
         socket.broadcast.emit('messageRecived', data)

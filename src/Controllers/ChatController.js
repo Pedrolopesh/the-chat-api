@@ -1,5 +1,6 @@
 const User = require('../database/models/User');
 const Chat = require('../database/models/Chat');
+const distinguishUser = require('../utils/distinguishUser');
 
 module.exports ={
     async create(req, res){
@@ -9,82 +10,95 @@ module.exports ={
                 chatData
             } = req.body
 
-            const alerdyCreated = await Chat.findOne({user_origin: user_origin , user_response: user_response})
+            //@TO DO
+            // PRECISA VERIFICAR SE O CARA JÁ TEM UM CHAT CRIADO POREM A VERIFICAÇÃO DEVE OCORRER TANTO PARA O CASO DO USUÁRIO SER RESPONSE OU ORIGIN
+            const alerdyCreated = await Chat.findOne({ user_origin: user_origin , user_response: user_response})
+            const secondCreated = await Chat.findOne({ user_origin: user_response , user_response: user_origin})
 
-            if(alerdyCreated != null)
+
+            if(alerdyCreated != null && alerdyCreated != '' ){
                 return res.status(200).send({ success: false, error: 'Alredy have a chat', message: alerdyCreated})
-
-            if(!user_origin || !user_response || !chatData)
+            
+            }
+            else if(secondCreated != null && secondCreated != '' ){
+                return res.status(200).send({ success: false, error: 'Alredy have a chat', message: secondCreated})
+            }
+            else if(!user_origin || !user_response || !chatData){
                 return res.status(400).send({ success: false, error: 'Please fill the missing fields'})
-            
-            
-            const slect_user_origin = await User.findById( user_origin )
-            
-            const slect_user_response = await User.findById( user_response )
-            
-            
-            if(slect_user_origin == null){
-                return res.status(404).send({ success: false, error: 'user not found'})
             }
-
-            else if(slect_user_response == null){
-                return res.status(404).send({ success: false, error: 'error on create chat'})
-            }
-
-
-            const newChat = new Chat ({
-                user_origin: slect_user_origin._id,
-                user_response: slect_user_response._id,
-                status: 'new',
-                chatData
-            })
-
-            let result
-            await newChat.save()
-            .then(doc =>{
-                result = doc
-            })
-            .catch(err => {
-                return res.status(400).send(err)
-            })
-
             
-            await User.findByIdAndUpdate(req.body.user_response, {
-                $push: {
-                    chats: result._id
+            else{
+
+                
+                
+                const slect_user_origin = await User.findById( user_origin )
+                
+                const slect_user_response = await User.findById( user_response )
+                
+                
+                if(slect_user_origin == null){
+                    return res.status(404).send({ success: false, error: 'user not found'})
                 }
-            })
-            .then(doc => {
-                console.log("user sender")
-                console.log(doc)
-            })
-
-            await User.findByIdAndUpdate(req.body.user_origin, {
-                $push: {
-                    chats: result._id
+                
+                else if(slect_user_response == null){
+                    return res.status(404).send({ success: false, error: 'error on create chat'})
                 }
-            })
-            .then(doc => {
-                console.log("user reciver")
-                console.log(doc)
-            })
-
-            // .catch(err => {
-            //     console.log(err)
-            //     res.send({
-            //         success: true,
-            //         message: 'Faild to add chat on user',
-            //         data: err
-            //     })
-            // })
-
-            return res.send({
-                success: true,
-                message: 'Success to create chat',
-                doc: result
-            })
-
-
+                
+                
+                const newChat = new Chat ({
+                    user_origin: slect_user_origin._id,
+                    user_response: slect_user_response._id,
+                    status: 'new',
+                    chatData
+                })
+                
+                let result
+                await newChat.save()
+                .then(doc =>{
+                    result = doc
+                })
+                .catch(err => {
+                    return res.status(400).send(err)
+                })
+                
+                
+                await User.findByIdAndUpdate(req.body.user_response, {
+                    $push: {
+                        chats: result._id
+                    }
+                })
+                .then(doc => {
+                    console.log("user sender")
+                    console.log(doc)
+                })
+                
+                await User.findByIdAndUpdate(req.body.user_origin, {
+                    $push: {
+                        chats: result._id
+                    }
+                })
+                .then(doc => {
+                    console.log("user reciver")
+                    console.log(doc)
+                })
+                
+                // .catch(err => {
+                    //     console.log(err)
+                    //     res.send({
+                        //         success: true,
+                        //         message: 'Faild to add chat on user',
+                        //         data: err
+                        //     })
+                        // })
+                        
+                        return res.send({
+                            success: true,
+                            message: 'Success to create chat',
+                            doc: result
+                        })
+                        
+            }
+                        
     },
 
     async sendMessage(req, res){
@@ -145,48 +159,85 @@ module.exports ={
 
         return res.json(result)
     },
+    async listChatConectionsByUserId(req, res){
+        const user_id = req.params.id   
+        console.log("seu user é esse mano  =====>"+user_id)
+
+        const user_response_array = await Chat.find({ user_response: user_id })
+        .populate('user_origin')
+        .populate('user_response')
+
+        const user_origin_array = await Chat.find({ user_origin: user_id })
+        .populate('user_origin')
+        .populate('user_response')
+
+        // let userReponseConnections = {
+        //     user_type: 'response',
+        //     message:user_response_array
+        // }
+        
+        // let userOriginConnections ={
+        //     user_type: 'Origin',
+        //     message:user_origin_array
+        // }
+        
+        if(user_response_array != ''){
+            res.send(user_response_array)
+
+        }else{
+            res.send(user_origin_array)
+        }
+    },
     
     async listChatConections(req, res){
         const user_id = req.params.id   
         console.log("seu user é esse mano  =====>"+user_id)
         
-        const user_connections = []
-        const results_array = []
+        // const user_connections = []
+        // const results_array = []
         
-        const user_response_array = await Chat.find({ user_response: user_id })
-        const user_origin_array = await Chat.find({ user_origin: user_id })
-
-        user_connections.push(user_response_array)
-        user_connections.push(user_origin_array)
+        const user_connections = await Chat.findOne({ user_origin: user_id , user_response: user_id})
         
-        let recivers = []
+        res.send(user_connections)
 
-        user_connections.map((result) =>{
-            for(let i in result){
-                // console.log(result[i])
-                let users_response = result[i].user_response
-                let users_origin = result[i].user_origin
+        // const user_response_array = await Chat.findOne({ user_response: user_id })
+        // const user_origin_array = await Chat.find({ user_origin: user_id })
+
+        // user_connections.push(user_response_array)
+        // user_connections.push(user_origin_array)
+
+        // let testParam = distinguishUser(user_response,user_origin )
+        // console.log(testParam)
+        
+        // let recivers = []
+
+        // res.send(user_connections)
+        // user_connections.map((result) =>{
+        //     for(let i in result){
+        //         // console.log(result[i])
+        //         let users_response = result[i].user_response
+        //         let users_origin = result[i].user_origin
                 
-                recivers.push(users_response[0], users_origin[0])
-                console.log(recivers)
+        //         recivers.push(users_response[0], users_origin[0])
+        //         console.log(recivers)
                 
-                // let filtered = recivers.filter((item) => { return item.user_origin != user_id || item.user_response != user_id })
+        //         // let filtered = recivers.filter((item) => { return item.user_origin != user_id || item.user_response != user_id })
                 
-                // let newArray = {
-                //     reciver: result[i].user_origin   
-                // }
-                // results_array.push(filtered)
-            }
-            results_array.push(result)
-            // results_array.push(filtered)
-        })
+        //         // let newArray = {
+        //         //     reciver: result[i].user_origin   
+        //         // }
+        //         // results_array.push(filtered)
+        //     }
+        //     results_array.push(result)
+        //     // results_array.push(filtered)
+        // })
 
         // let list_all_connections_chats = {
         //     users_responses: user_response_array,
         //     users_origin: user_origin_array
         // }
 
-        res.send(results_array)
+        // res.send(results_array)
 
 
 

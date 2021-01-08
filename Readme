@@ -4,3 +4,10 @@ Access to mongo db and cloudnariry
 
     user_origin => O criador do chat é o user_origin / usuário que está logado
     user_response => O usuário que recebe e responde a mensagem
+
+
+    http://localhost:3333/api/signup POST
+    body = {"name":"user_origin","email":"user_origin@gmail.com","password":"123123"}
+
+
+    http://localhost:3333/api/login POST

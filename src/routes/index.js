@@ -37,4 +37,7 @@ router.use(authMiddleware).route('/chat/messages/:id').get(ChatController.listMe
 // GET CHAT ID
 router.use(authMiddleware).route('/user/chats/:id').get(ChatController.listChatConections);
 
+// GET CHAT CONECTIONS BY USER ID
+router.use(authMiddleware).route('/chats/userid/:id').get(ChatController.listChatConectionsByUserId);
+
 module.exports = router;
