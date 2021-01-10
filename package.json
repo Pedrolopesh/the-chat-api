@@ -1,5 +1,5 @@
 {
-  "name": "the chat api",
+  "name": "the-chat-api",
   "version": "1.0.1",
   "description": "API for the chat app",
   "main": "./src/index.js",
