@@ -1,13 +1,56 @@
-Access to mongo db and cloudnariry
-    mongodbatlas@sharklasers.com
-    tempemailtest
+# THE CHAT API
 
-    user_origin => O criador do chat é o user_origin / usuário que está logado
-    user_response => O usuário que recebe e responde a mensagem
+the chat is an app created to talk with security and safe messages, all messages are cypted by end to end cryptograpy, try use our application visiting www.thechat.com.br
 
+# Login
+http://localhost:3333/api/login 
+POST
+body = {"email":"email@test.com", "password":"123123"}
 
-    http://localhost:3333/api/signup POST
-    body = {"name":"user_origin","email":"user_origin@gmail.com","password":"123123"}
+# Signup
+http://localhost:3333/api/signup
+POST
+body = {"name":"user name","email":"email@test.com","password":"123123"}
 
+# Update User
+http://localhost:3333/api/update/user *authentication need
+PUT 
+body = {"name":"user name","email":"email@test.com","password":"123123"}
 
-    http://localhost:3333/api/login POST
+# Find user by id
+http://localhost:3333/api/user/:id *authentication need
+GET
+
+# update user image
+http://localhost:3333/api/upload/user/image *authentication need
+PACTH
+body = {"user_id":"user id","photo":"../image.jpeg"}
+
+# Create chat between users
+http://localhost:3333/api/create/chat *authentication need
+POST
+body = {
+    "user_origin":"user name",
+    "user_response":"email@test.com",
+    "chatData":[{"sender":"origin","message":"message here","timestamp":"dd/mm/yyyy-hh:mm"}]
+    }
+
+# Send message
+http://localhost:3333/api/send/message *authentication need
+PUT
+body = {"chat_id":"5fdd5835601bb67be8decbe5","chatData":{"sender":"origin","message":"test","timestamp":"10/01/2021-01:15"}}
+
+# List all chats
+http://localhost:3333/api/list/chats *authentication need
+GET
+
+# Find chat by id
+http://localhost:3333/api/chat/messages/:chat_id *authentication need
+GET
+
+# Find user chats 
+http://localhost:3333/api/chats/userid/:user_id *authentication need
+GET
+
+user_origin => O criador do chat é o user_origin / usuário que está logado
+user_response => O usuário que recebe e responde a mensagem
