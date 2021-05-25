@@ -9,14 +9,14 @@ module.exports = {
     create(req, res){
 
         const { name, email, password } = req.body
-        
+
         if(!name || !email || !password){
             res.status(400).send({
                 success: false,
                 message: 'Please fill in all fields'
             })
         }
-        
+
         User.findOne({ email:email }).then(user => {
             if(user){
                 res.status(200).send({
@@ -59,17 +59,16 @@ module.exports = {
                             success: false,
                             error: err
                         })
-                        
+
                     })
                 }))
             }
         })
-        
     },
 
     login(req,res){
         const { email, password }= req.body
-        
+
         //CHECK IF SEND SOMETHING ON BODY.
         if(!email){
             res.status(400).send({
@@ -90,7 +89,7 @@ module.exports = {
             else{
                 bcrypt.compare(password, user.password)
                 .then( (isMacth) => {
-                    
+
                     //CHECK IF PASSWORD IS CORRET
                     if(!isMacth){
                         return res.status(400).json({
@@ -98,8 +97,7 @@ module.exports = {
                             message: "User or password do not macth"
                         })
                     }
-                    
-                    
+
                     //GENERATE TOKEN SESSION AND RETURN WITH USE ID
                     else{
                         function generateToken(params={}){
@@ -145,7 +143,7 @@ module.exports = {
             name,
             email,
         })
-        
+
         .catch(err => {
             console.log(err)
             res.send({
@@ -210,5 +208,8 @@ module.exports = {
 
         })
     },
-    
+
+    async getContacts(req, res) {
+        
+    }
 }

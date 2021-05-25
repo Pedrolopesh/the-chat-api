@@ -4,7 +4,7 @@ const distinguishUser = require('../utils/distinguishUser');
 
 module.exports ={
     async create(req, res){
-        const { 
+        const {
                 user_origin,
                 user_response,
                 chatData
@@ -18,7 +18,6 @@ module.exports ={
 
             if(alerdyCreated != null && alerdyCreated != '' ){
                 return res.status(200).send({ success: false, error: 'Alredy have a chat', message: alerdyCreated})
-            
             }
             else if(secondCreated != null && secondCreated != '' ){
                 return res.status(200).send({ success: false, error: 'Alredy have a chat', message: secondCreated})
@@ -26,88 +25,55 @@ module.exports ={
             else if(!user_origin || !user_response || !chatData){
                 return res.status(400).send({ success: false, error: 'Please fill the missing fields'})
             }
-            
-            else{
 
-                
-                
+            else{
                 const slect_user_origin = await User.findById( user_origin )
-                
+
                 const slect_user_response = await User.findById( user_response )
-                
-                
+
                 if(slect_user_origin == null){
                     return res.status(404).send({ success: false, error: 'user not found'})
                 }
-                
+
                 else if(slect_user_response == null){
                     return res.status(404).send({ success: false, error: 'error on create chat'})
                 }
-                
-                
+
                 const newChat = new Chat ({
                     user_origin: slect_user_origin._id,
                     user_response: slect_user_response._id,
                     status: 'new',
                     chatData
                 })
-                
+
                 let result
                 await newChat.save()
-                .then(doc =>{
-                    result = doc
-                })
-                .catch(err => {
-                    return res.status(400).send(err)
-                })
-                
-                
+                .then(doc =>{ result = doc })
+                .catch(err => { return res.status(400).send(err) })
+
                 await User.findByIdAndUpdate(req.body.user_response, {
                     $push: {
                         chats: result._id
                     }
                 })
-                .then(doc => {
-                    console.log("user sender")
-                    console.log(doc)
-                })
-                
                 await User.findByIdAndUpdate(req.body.user_origin, {
                     $push: {
                         chats: result._id
                     }
                 })
-                .then(doc => {
-                    console.log("user reciver")
-                    console.log(doc)
-                })
-                
-                // .catch(err => {
-                    //     console.log(err)
-                    //     res.send({
-                        //         success: true,
-                        //         message: 'Faild to add chat on user',
-                        //         data: err
-                        //     })
-                        // })
-                        
-                        return res.send({
-                            success: true,
-                            message: 'Success to create chat',
-                            doc: result
-                        })
-                        
+                .catch(err => { res.send({ success: true, message: 'Faild to add chat on user', error: err }) })
+
+                return res.send({ success: true, message: 'Success to create chat', doc: result })
             }
-                        
     },
 
     async sendMessage(req, res){
-        const { 
-            chat_id, 
+        const {
+            chat_id,
             chatData
         } = req.body
 
-        
+
         if(!chatData || !chat_id )
             return res.send({message: "Please fill the missing fields"})
 
@@ -128,7 +94,7 @@ module.exports ={
     },
 
     index(req, res){
-        
+
         console.log("foi aqui");
 
         Chat.find((err, docs) => {
@@ -139,7 +105,7 @@ module.exports ={
                 message: docs
             })
         })
-    
+
     },
 
     async listMessageChatbById(req, res){
@@ -152,7 +118,7 @@ module.exports ={
                 console.log(err)
                 return res.send(err)
             }
-            
+
         })
         .populate('user_origin')
         .populate('user_response')
@@ -160,8 +126,7 @@ module.exports ={
         return res.json(result)
     },
     async listChatConectionsByUserId(req, res){
-        const user_id = req.params.id   
-        console.log("seu user é esse mano  =====>"+user_id)
+        const user_id = req.params.id
 
         const user_response_array = await Chat.find({ user_response: user_id })
         .populate('user_origin')
@@ -171,33 +136,13 @@ module.exports ={
         .populate('user_origin')
         .populate('user_response')
 
-        // let userReponseConnections = {
-        //     user_type: 'response',
-        //     message:user_response_array
-        // }
-        
-        // let userOriginConnections ={
-        //     user_type: 'Origin',
-        //     message:user_origin_array
-        // }
-        
-        if(user_response_array != ''){
-            res.send(user_response_array)
-
-        }else{
-            res.send(user_origin_array)
-        }
+        return res.send({success: true, user_response_mesage:user_response_array, user_origin_message: user_origin_array})
     },
-    
+
     async listChatConections(req, res){
-        const user_id = req.params.id   
-        console.log("seu user é esse mano  =====>"+user_id)
-        
-        // const user_connections = []
-        // const results_array = []
-        
+        const user_id = req.params.id
         const user_connections = await Chat.findOne({ user_origin: user_id , user_response: user_id})
-        
+
         res.send(user_connections)
 
         // const user_response_array = await Chat.findOne({ user_response: user_id })
@@ -208,7 +153,7 @@ module.exports ={
 
         // let testParam = distinguishUser(user_response,user_origin )
         // console.log(testParam)
-        
+
         // let recivers = []
 
         // res.send(user_connections)
@@ -217,14 +162,14 @@ module.exports ={
         //         // console.log(result[i])
         //         let users_response = result[i].user_response
         //         let users_origin = result[i].user_origin
-                
+
         //         recivers.push(users_response[0], users_origin[0])
         //         console.log(recivers)
-                
+
         //         // let filtered = recivers.filter((item) => { return item.user_origin != user_id || item.user_response != user_id })
-                
+
         //         // let newArray = {
-        //         //     reciver: result[i].user_origin   
+        //         //     reciver: result[i].user_origin
         //         // }
         //         // results_array.push(filtered)
         //     }
@@ -239,19 +184,16 @@ module.exports ={
 
         // res.send(results_array)
 
-
-
-
         // // ============ USER RESPONSE CONNECTIONS ============
         // if(user_response_result != ''){
-            
+
         //     user_response_result.map((result) =>{
         //         chat_user_ids.push(result.user_origin)
         //     })
-            
+
         //     let chat_conections = []
         //     for(let i in chat_user_ids){
-                
+
         //         let user_array = await User.findById(chat_user_ids[i]).then(resp => {
         //             let chats = {
         //                 user_id: resp._id,
@@ -263,22 +205,21 @@ module.exports ={
         //         chat_conections.push(user_array)
         //     }
         //     // return res.send(chat_conections)
-            
+
         // }
         // ============ USER RESPONSE CONNECTIONS ============
-        
-        
+
         // else{
         //     // ============ USER ORIGIN CONNECTIONS ============
         //     const user_origin_result = await Chat.find({ user_origin: user_id })
-            
+
         //     user_origin_result.map((result) =>{
         //         chat_user_ids.push(result.user_response)
         //     })
-            
+
         //     let chat_conections = []
         //     for(let i in chat_user_ids){
-                
+
         //         let user_array = await User.findById(chat_user_ids[i]).then(resp => {
         //             let chats = {
         //                 user_id: resp._id,
@@ -289,13 +230,13 @@ module.exports ={
         //         })
         //         chat_conections.push(user_array)
         //     }
-            
+
         //     console.log("USER ORIGIN")
         //     return res.send(chat_conections)
         //     // ============ USER ORIGIN CONNECTIONS ============
 
         // }
-        
+
     },
 
 }

@@ -11,9 +11,9 @@ module.exports = (req, res, next) => {
 
         if(!parts.length === 2)
             return res.status(401).send({ error: 'Token error' })
-            
+
             const [ scheme, token ] = parts
-            
+
         if(!/^Bearer$/i.test(scheme))
             return res.status(401).send({ error: 'Token malFormatted' })
 
@@ -25,5 +25,4 @@ module.exports = (req, res, next) => {
             req.userId = decoded.id;
             return next();
         })
-    
 }
