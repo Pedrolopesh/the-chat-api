@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const authConfig = require('../config/auth.json');
 const cloudinary = require('cloudinary').v2;
+const webpush = require('web-push');
 
 module.exports = {
 
@@ -19,10 +20,7 @@ module.exports = {
 
         User.findOne({ email:email }).then(user => {
             if(user){
-                res.status(200).send({
-                    success:false,
-                    message:"User Alredy exist"
-                })
+                res.status(200).send({ success:false, message:"User Alredy exist" })
             }
             else{
                 const newUser = new User({
@@ -44,22 +42,12 @@ module.exports = {
                             })
                         }
 
-                        res.status(201).send({
-
-                            success: true,
-                            _id: user._id,
-                            token: generateToken({ id: user.id })
-
-                        })
+                        res.status(201).send({ success: true, _id: user._id, token: generateToken({ id: user.id }) })
                     })
 
                     .catch(err => {
                         console.log(err)
-                        return res.status(400).send({
-                            success: false,
-                            error: err
-                        })
-
+                        return res.status(400).send({ success: false, error: err })
                     })
                 }))
             }
@@ -71,20 +59,14 @@ module.exports = {
 
         //CHECK IF SEND SOMETHING ON BODY.
         if(!email){
-            res.status(400).send({
-                success: false,
-                message: 'Please fill in all necessary fields'
-            })
+            res.status(400).send({ success: false, message: 'Please fill in all necessary fields' })
         }
         User.findOne({ email: email }).select('+password')
         .then((user)=> {
 
             //CHECK IF USER EXIST
             if(!user){
-                return res.status(403).send({
-                    success: false,
-                    error: "email don't exist, try register first"
-                })
+                return res.status(403).send({ success: false, error: "email don't exist, try register first" })
             }
             else{
                 bcrypt.compare(password, user.password)
@@ -92,10 +74,7 @@ module.exports = {
 
                     //CHECK IF PASSWORD IS CORRET
                     if(!isMacth){
-                        return res.status(400).json({
-                            success: false,
-                            message: "User or password do not macth"
-                        })
+                        return res.status(400).json({ success: false, message: "User or password do not macth" })
                     }
 
                     //GENERATE TOKEN SESSION AND RETURN WITH USE ID
@@ -107,11 +86,7 @@ module.exports = {
                         }
                         console.log("User success logedin")
                         console.log(user._id)
-                        return res.status(200).json({
-                            success: true,
-                            user_id: user._id,
-                            token: generateToken({ id: user.id })
-                        })
+                        return res.status(200).json({ success: true, user_id: user._id, token: generateToken({ id: user.id }) })
                     }
                 })
             }
@@ -146,18 +121,10 @@ module.exports = {
 
         .catch(err => {
             console.log(err)
-            res.send({
-                success: true,
-                error: 'error on update user',
-                data: err
-            })
+            res.send({ success: true, error: 'error on update user', data: err })
         })
 
-        return res.send({
-            success: true,
-            message: 'succes on update user',
-            data: userUpdated
-        })
+        return res.send({ success: true, message: 'succes on update user', data: userUpdated })
     },
 
     //ARRUMAR A FUNÇÃO PARA RETORNAR URL DE MANEIRA QUE RESPEITE O AWAIT
@@ -183,11 +150,7 @@ module.exports = {
 
             .catch(err => {
                 console.log(err)
-                res.send({
-                    sucess: true,
-                    error: 'error on update user',
-                    data: err
-                })
+                res.send({ sucess: true, error: 'error on update user', data: err })
             })
         })
         .catch(err => {
@@ -209,7 +172,12 @@ module.exports = {
         })
     },
 
-    async getContacts(req, res) {
-        
+    async subscribewebpush(req, res) {
+        const subscription = req.body;
+        res.status(201).send({ sucess: true, message: 'subscription created'})
+
+        const payload = JSON.stringify({ title: 'Push test' })
+        webpush.sendNotification(subscription, payload).catch((err) => console.log(err))
+
     }
 }

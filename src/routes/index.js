@@ -40,4 +40,7 @@ router.use(authMiddleware).route('/user/chats/:id').get(ChatController.listChatC
 // GET CHAT CONECTIONS BY USER ID
 router.use(authMiddleware).route('/chats/userid/:id').get(ChatController.listChatConectionsByUserId);
 
+// GET CHAT CONECTIONS BY USER ID
+router.use(authMiddleware).route('/subscribe').post(UserController.subscribewebpush);
+
 module.exports = router;
