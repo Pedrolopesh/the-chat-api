@@ -3,6 +3,7 @@ const router = express.Router();
 
 const UserController = require('../Controllers/UserController');
 const ChatController = require('../Controllers/ChatController');
+const SubscribeController = require('../Controllers/SubscribeController');
 
 const authMiddleware = require('../middlewares/auth');
 
@@ -41,6 +42,6 @@ router.use(authMiddleware).route('/user/chats/:id').get(ChatController.listChatC
 router.use(authMiddleware).route('/chats/userid/:id').get(ChatController.listChatConectionsByUserId);
 
 // GET CHAT CONECTIONS BY USER ID
-router.use(authMiddleware).route('/subscribe').post(UserController.subscribewebpush);
+router.use(authMiddleware).route('/subscribe').post(SubscribeController.subscribewebpush);
 
 module.exports = router;

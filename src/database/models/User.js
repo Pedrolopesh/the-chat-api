@@ -34,7 +34,12 @@ const UserSchema = new mongoose.Schema({
         require: false,
         enum: ['active', 'blocked', 'inative'],
     },
-    
+
+    subscription: {
+        type: Array,
+        require: false
+    },
+
     createdAt: {
         type: Date,
         default:Date.now,
