@@ -1,9 +1,17 @@
 const User = require("../database/models/User");
 const webpush = require('web-push');
 const Subscribe = require("../database/models/Subscribe");
+const keys = require('../config/keys')
+
+const publicVapidKey = process.env.PUBLIC_KEY_WEBPUSH || keys.PUBLIC_KEY_WEBPUSH;
+const privateVapidKey = process.env.PRIVATE_KEY || keys.PRIVATE_KEY;
+
+
+webpush.setVapidDetails('mailto:test@test.com', publicVapidKey || '', privateVapidKey || '' )
 
 module.exports = {
     async subscribewebpush(req, res) {
+
         const { subscribeData, user_id } = req.body;
         const newSubscription = new Subscribe({
             credentials: JSON.stringify(subscribeData),
