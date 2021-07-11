@@ -44,4 +44,8 @@ router.use(authMiddleware).route('/chats/userid/:id').get(ChatController.listCha
 // GET CHAT CONECTIONS BY USER ID
 router.use(authMiddleware).route('/subscribe').post(SubscribeController.subscribewebpush);
 
+// SEND NOTIFICATION
+router.use(authMiddleware).route('/notification/send').post(SubscribeController.sendNotification);
+
+
 module.exports = router;
