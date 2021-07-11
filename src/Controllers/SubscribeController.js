@@ -36,12 +36,13 @@ module.exports = {
         .catch(err => { console.log(err); res.send({ success: false, error: "can't find user", data: err }) })
 
         // const credentials = JSON.parse(user.subscribe)
-        const credentials = user.subscription.credentials
+        console.log(user)
+        const credentials = await user.subscription.credentials
         const payload = 'TESTE DE ENVIO DE MENSAGEM'
 
         console.log('credentials', JSON.parse(credentials) )
 
-        webpush.sendNotification(JSON.parse(credentials), payload)
+        await webpush.sendNotification(JSON.parse(credentials), payload)
         .then(resp => { console.log('NOTIFICAÇÂO', resp) })
         .catch(err => { console.log('error', err) })
         res.status(200).send({ sucess: true, message: 'Notification sended...'})
