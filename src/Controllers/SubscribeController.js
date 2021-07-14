@@ -6,7 +6,7 @@ const keys = require('../config/keys')
 const publicVapidKey = process.env.PUBLIC_KEY_WEBPUSH || keys.PUBLIC_KEY_WEBPUSH;
 const privateVapidKey = process.env.PRIVATE_KEY || keys.PRIVATE_KEY;
 
-webpush.setVapidDetails('mailto:publicsenderemail@gmail.com', publicVapidKey || '', privateVapidKey || '' )
+webpush.setVapidDetails('mailto:test@code.co.uk', publicVapidKey || '', privateVapidKey || '' )
 
 module.exports = {
     async subscribewebpush(req, res) {
