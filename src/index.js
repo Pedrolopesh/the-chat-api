@@ -41,7 +41,7 @@ io.on('connection', socket => {
 app.use(cors());
 
 server.listen(port, () => {
-    console.log('Server started at port ' + port)
+    console.log('Server started at port ' + `http://localhost:${port}/api/`)
 });
 
 app.use('/api', routes);

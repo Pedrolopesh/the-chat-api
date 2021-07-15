@@ -20,7 +20,9 @@ module.exports = {
         newSubscription.save();
 
         const user = await User.findByIdAndUpdate(user_id, {
-            subscription: newSubscription._id
+            $push: {
+                subscription: newSubscription._id
+            }
         }).catch(err => { console.log(err); res.send({ success: false, error: 'error on update user', data: err }) })
 
         if(user) { console.log(user) }
@@ -32,12 +34,17 @@ module.exports = {
     async sendNotification(req, res) {
         const { user_id } = req.body
 
-        const user = await User.findById({ _id: user_id}).populate('subscription')
-        .catch(err => { console.log(err); res.send({ success: false, error: "can't find user", data: err }) })
+        const user = await User.findById({ _id: user_id})
+        .catch(err => { console.log(err); return res.send({ success: false, error: "can't find user", data: err }) })
+
+        if(!user) { console.log(user); return res.send({ success: false, error: "can't find user", data: err }) }
+
+        const subscription = await Subscribe.findById({_id: user.subscription[0]}).catch(err => { console.log(err); return res.send({ success: false, error: "can't find user", data: err }) })
+
+        if(!subscription) { console.log(subscription); return res.send({ success: false, error: "can't find subscription", data: err }) }
 
         // const credentials = JSON.parse(user.subscribe)
-        console.log(user)
-        const credentials = await user.subscription.credentials
+        const credentials = await subscription.credentials
         const payload = 'TESTE DE ENVIO DE MENSAGEM'
 
         console.log('credentials', JSON.parse(credentials) )

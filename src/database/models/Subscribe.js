@@ -7,10 +7,8 @@ const SubscribeSchema = new mongoose.Schema({
         require: true
     },
     user: {
-        type: String,
-        unique: true,
-        require: true,
-        lowercase: true
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
     },
 
     active:{
