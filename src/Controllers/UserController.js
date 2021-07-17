@@ -105,24 +105,22 @@ module.exports = {
     //NECESSÁRIO ARRUMAR ESSA FUNÇÃO
     async update(req, res) {
 
-        const { name, email} = req.body
-        const user = req.body.user_id
+        const { name } = req.body
+        const userId = req.params.id;
 
         // const user = await User.findById(data.user_id)
 
-        if(!name || !email){
-            res.send({ message: 'Please fill in all fields'})
+        if(!name && !userId){
+            return res.send({ message: 'Please fill in all fields'})
         }
 
-        const userUpdated = await User.findByIdAndUpdate(user, {
-            name,
-            email,
-        })
+        const locateUser = await User.findById(userId).catch(err => { console.log(err); return res.status(400).json({ success: false, message: "User not found", error: err }) })
 
-        .catch(err => {
-            console.log(err)
-            res.send({ success: true, error: 'error on update user', data: err })
-        })
+        if(!locateUser){console.log(locateUser); return res.status(400).json({ success: false, message: "User not found" })}
+
+        const userUpdated = await User.findByIdAndUpdate(userId, {
+            name,
+        }).catch(err => { console.log(err); return res.send({ success: true, error: 'error on update user', data: err }) })
 
         return res.send({ success: true, message: 'succes on update user', data: userUpdated })
     },
