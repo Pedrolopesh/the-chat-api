@@ -35,8 +35,6 @@ router.use(authMiddleware).route('/list/chats').get(ChatController.index);
 // GET CHAT ID
 router.use(authMiddleware).route('/chat/messages/:id').get(ChatController.listMessageChatbById);
 
-// GET CHAT ID
-router.use(authMiddleware).route('/user/chats/:id').get(ChatController.listChatConections);
 
 // GET CHAT CONECTIONS BY USER ID
 router.use(authMiddleware).route('/chats/userid/:id').get(ChatController.listChatConectionsByUserId);
