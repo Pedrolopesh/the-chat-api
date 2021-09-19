@@ -27,6 +27,7 @@ module.exports = {
                     name,
                     email,
                     password,
+                    img_profile:"",
                     status:"active"
                 })
 
@@ -130,44 +131,35 @@ module.exports = {
         const file = req.files.photo
         const user = req.body.user_id
 
-        cloudinary.uploader.upload(file.tempFilePath, function (err, result){
-            if(err){console.log(err)}
+        const cloudinaryApi = await cloudinary.uploader.upload(file.tempFilePath).catch(err => {
+            return res.send({ sucess: false, error: err })
+        })
 
-        }).then(async (result) => {
-            await User.findByIdAndUpdate(user, {
-                img_profile:result.url
+        console.log('cloudinaryApi')
+        console.log(cloudinaryApi)
+
+        if(cloudinaryApi){
+            const userFind = await User.findByIdAndUpdate(user, {
+                img_profile:cloudinaryApi.url
             })
-
-            .then((doc) =>{
-                res.send({
-                    sucess: true,
-                    message: 'succes on update user image profile',
-                    data: doc
-                })
-            })
-
             .catch(err => {
                 console.log(err)
-                res.send({ sucess: true, error: 'error on update user', data: err })
+                return res.send({ sucess: true, error: 'error on update user', data: err })
             })
-        })
-        .catch(err => {
-            res.send(err)
-        })
+
+            return res.send({ sucess: true, message: 'succes on update user image profile', data: userFind })
+        }
     },
 
-    find(req, res){
+    async find(req, res){
         const id = req.params.id;
 
-        User.findById(id, function (err, doc) {
-
-            if (err) {
-                console.log(err)
-                res.send(err)
-            }
-            return res.json(doc)
-
+        const userFind = await User.findById(id).catch(err => {
+            console.log(err)
+            return err
         })
+        
+        return res.status(201).send({ sucess: true, content: userFind})
     },
 
     async subscribewebpush(req, res) {

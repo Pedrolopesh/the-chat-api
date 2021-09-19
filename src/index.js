@@ -23,9 +23,9 @@ app.use(fileUpload({
 }));
 
 cloudinary.config({
-    cloud_name:process.env.CLOUDINARY_NAME.cloudinary_name,
-    api_key:process.env.CLOUDINARY_API_KEY.cloudinary_API_Key,
-    api_secret:process.env.CLOUDINARY_API_SECRET.cloudinary_API_Secret
+    cloud_name:process.env.CLOUDINARY_NAME,
+    api_key:process.env.CLOUDINARY_API_KEY,
+    api_secret:process.env.CLOUDINARY_API_SECRET
 })
 
 io.on('connection', socket => {
