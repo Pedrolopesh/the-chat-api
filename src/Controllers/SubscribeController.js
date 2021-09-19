@@ -1,10 +1,11 @@
 const User = require("../database/models/User");
 const webpush = require('web-push');
 const Subscribe = require("../database/models/Subscribe");
-const keys = require('../config/keys')
+require('dotenv').config()
 
-const publicVapidKey = process.env.PUBLIC_KEY_WEBPUSH || keys.PUBLIC_KEY_WEBPUSH;
-const privateVapidKey = process.env.PRIVATE_KEY || keys.PRIVATE_KEY;
+
+const publicVapidKey = process.env.PUBLIC_KEY_WEBPUSH;
+const privateVapidKey = process.env.PRIVATE_KEY;
 
 webpush.setVapidDetails('mailto:test@code.co.uk', publicVapidKey || '', privateVapidKey || '' )
 
