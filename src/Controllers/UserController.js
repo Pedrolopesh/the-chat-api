@@ -126,6 +126,29 @@ module.exports = {
         return res.send({ success: true, message: 'succes on update user', data: userUpdated })
     },
 
+    //NECESSÁRIO ARRUMAR ESSA FUNÇÃO
+    async updateImage(req, res) {
+
+        const { img_profile } = req.body
+        const userId = req.params.id;
+
+        // const user = await User.findById(data.user_id)
+
+        if(!img_profile || !userId){
+            return res.send({ message: 'Please fill in all fields'})
+        }
+
+        const locateUser = await User.findById(userId).catch(err => { console.log(err); return res.status(400).json({ success: false, message: "User not found", error: err }) })
+
+        if(!locateUser){console.log(locateUser); return res.status(400).json({ success: false, message: "User not found" })}
+
+        const userUpdated = await User.findByIdAndUpdate(userId, {
+            img_profile,
+        }).catch(err => { console.log(err); return res.send({ success: true, error: 'error on update user', data: err }) })
+
+        return res.send({ success: true, message: 'succes on update user', data: userUpdated })
+    },
+
     //ARRUMAR A FUNÇÃO PARA RETORNAR URL DE MANEIRA QUE RESPEITE O AWAIT
     async upLoadUserImage(req, res){
         const file = req.files.photo
