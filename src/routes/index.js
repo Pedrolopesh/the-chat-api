@@ -16,6 +16,9 @@ router.get('/', (req, res) => {
 router.route('/signup').post(UserController.create);
 router.route('/login').post(UserController.login);
 
+router.route('/forgot/pass').post(UserController.forgotPassword);
+router.route('/confirm/recovery/code').post(UserController.confirmUserCode);
+
 
 router.route('/list/users').get(UserController.index);
 // router.use(authMiddleware).route('/list/users').get(UserController.index);

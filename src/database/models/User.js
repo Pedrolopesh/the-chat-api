@@ -18,6 +18,11 @@ const UserSchema = new mongoose.Schema({
         require: false,
     },
 
+    confirmCode:{
+        type: String,
+        require: false,
+    },
+
     password: {
         type: String,
         require: true,

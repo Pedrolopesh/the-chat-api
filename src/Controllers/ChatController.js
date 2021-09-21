@@ -1,6 +1,6 @@
 const User = require('../database/models/User');
 const Chat = require('../database/models/Chat');
-const distinguishUser = require('../utils/distinguishUser');
+// const distinguishUser = require('../utils/distinguishUser');
 
 module.exports ={
     async create(req, res){
