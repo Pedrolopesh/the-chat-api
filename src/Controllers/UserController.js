@@ -295,7 +295,7 @@ module.exports = {
         if(!code || !email) return res.status(400).send({ success: false, message: 'Please fill in all fields' })
 
         const userLocate = await User.findOne({ email:email })
-        if(!userLocate) return res.status(404).send({ success: false, message:'Player not found' })
+        if(!userLocate) return res.status(404).send({ success: false, message:'User not found' })
 
         if(code === userLocate.confirmCode){
             return res.status(200).send({ success: true, message:'corrent_pin', userLocate: userLocate })
@@ -303,5 +303,49 @@ module.exports = {
             return res.status(404).send({ success: false, message:'wrong_pin' })
         }
 
+    },
+
+    async updateUserPassword(req, res){
+        const { code, email, password, confirmPassword } = req.body
+
+        if(!code || !email || !password || !confirmPassword) return res.status(400).send({ success: false, message: 'Please fill in all fields' })
+
+        const userLocate = await User.findOne({ email:email })
+        if(!userLocate){
+            return res.status(404).send({ success: false, message:'User not found' })
+        }
+
+        if(code !== userLocate.confirmCode){
+            return res.status(404).send({ success: false, message:'wrong_pin' })
+        }
+
+        if(password !== confirmPassword){
+            return res.status(404).send({ success: false, message:`passwords don't macth` })
+        }
+
+        bcrypt.genSalt(10, (err, salt) => bcrypt.hash(password, salt, async (err, hash) => {
+            if(err) throw err;
+            // password = hash;
+
+            const updatedUser = await User.findByIdAndUpdate(userLocate._id,{
+                $set:{
+                    password: hash
+                }
+            }).catch(err => { console.log(err); return res.status(201).send({ success: false, error: err })})
+
+            if(updatedUser){
+
+                function generateToken(params={}){
+                    return jwt.sign(params, authConfig.secret, {
+                        expiresIn: 2155926
+                    })
+                }
+                
+                return res.status(201).send({ success: true, id: userLocate._id, token: generateToken({ id: userLocate._id }) })
+            }
+
+        }))
+        
+        // bcrypt.compare(password, userLocate.password)
     }
 }

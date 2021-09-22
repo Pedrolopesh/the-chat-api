@@ -19,6 +19,7 @@ router.route('/login').post(UserController.login);
 router.route('/forgot/pass').post(UserController.forgotPassword);
 router.route('/confirm/recovery/code').post(UserController.confirmUserCode);
 
+router.route('/update/user/password').patch(UserController.updateUserPassword);
 
 router.route('/list/users').get(UserController.index);
 // router.use(authMiddleware).route('/list/users').get(UserController.index);
@@ -26,6 +27,7 @@ router.use(authMiddleware).route('/update/user/:id').put(UserController.update);
 router.use(authMiddleware).route('/user/:id').get(UserController.find);
 router.use(authMiddleware).route('/update/user/image/:id').patch(UserController.updateImage);
 router.use(authMiddleware).route('/upload/user/image').patch(UserController.upLoadUserImage);
+
 
 // CREATE MESSAGE
 router.use(authMiddleware).route('/create/chat').post(ChatController.create);
