@@ -223,7 +223,7 @@ module.exports = {
         }).catch(err => { console.log(err); return res.status(201).send({ success: false, error: err })})
 
         const output = `            
-        <div style="max-width: 100%; width: 40%; border: 1px solid; display: block; margin-left: auto; margin-right: auto;">
+        <div style="max-width: 100%; width: 100%; border: 1px solid; display: block; margin-left: auto; margin-right: auto;">
             <img src="https://res.cloudinary.com/publi-node-uploads/image/upload/v1632195138/portfolio/the-chat-app-email-logo_pq5nal.png" alt="link leito" style="max-width: 100%; width: 30%; display: block; margin-left: auto; margin-right: auto; margin-top: 20px; margin-bottom: 20px">
             <div style="background-color: #ff709f; padding: 13px">
                 <h3 style="font-size: 30px; color: white; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;">Não se preocupe 😄</h3>
