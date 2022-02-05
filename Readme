@@ -52,5 +52,5 @@ GET
 http://localhost:3333/api/chats/userid/:user_id *authentication need
 GET
 
-user_origin => O criador do chat é o user_origin / usuário que está logado
-user_response => O usuário que recebe e responde a mensagem
+user_origin => user_origin is the creator of chat.
+user_response => user_response is the person to recive the message first time.
