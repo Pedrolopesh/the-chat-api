@@ -5,6 +5,7 @@
   "main": "./src/index.js",
   "scripts": {
     "start": "node src/index.js",
+    "release": "./release.sh",
     "dev": "nodemon src/index.js"
   },
   "keywords": [],
