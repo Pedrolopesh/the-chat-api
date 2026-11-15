@@ -1,0 +1,8 @@
+# Regras padrão do Gitleaks + exceção para os testes, que usam códigos e
+# senhas de mentira (ex.: código de recuperação "111111").
+[extend]
+useDefault = true
+
+[allowlist]
+description = "dados fictícios dos testes"
+paths = ['''^test/''']
