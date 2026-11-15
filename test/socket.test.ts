@@ -56,6 +56,16 @@ describe("socket", () => {
     expect(await got).toMatchObject({ chat_id: chatId, sender: "origin", message: "tempo real" });
     await new Promise((r) => setTimeout(r, 100));
     expect(intruder).toBe(false);
+    // conversa nova chega na sala do usuário, sem precisar de "join"
+    const d = await signup("Diego");
+    const sd = await open(d.token);
+    const created = new Promise((r) => sd.on("chatCreated", r));
+    const newChat = await api().post("/api/create/chat").set(bearer(a.token)).send({ user_response: d.id });
+    expect(await created).toEqual({ chat_id: String(newChat.body.doc._id) });
+    const msgD = new Promise((r) => sd.on("messageRecived", r));
+    await api().put("/api/send/message").set(bearer(a.token)).send({ chat_id: newChat.body.doc._id, chatData: { message: "oi Diego" } });
+    expect(await msgD).toMatchObject({ message: "oi Diego" });
+    sd.close();
     sb.emit("leave", chatId);
     sb.close();
     sc.close();

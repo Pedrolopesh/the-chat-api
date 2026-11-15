@@ -32,14 +32,14 @@ pushRouter.post("/subscribe", body(z.object({ subscribeData: subscription }).pas
   res.status(200).send({ success: true, sucess: true, message: "subscription created in user" });
 });
 
-/** Notificação de teste: só para o próprio usuário. */
-pushRouter.post("/notification/send", async (req, res) => {
-  if (!features.push) throw new HttpError(503, "Push unavailable");
-  const subs = await Subscription.find({ user: me(req) }).lean();
+/** Envia para todas as inscrições do usuário; remove as expiradas. */
+export async function notifyUser(userId: string, payload: { title: string; body: string; url: string }) {
+  if (!features.push) return 0;
+  const subs = await Subscription.find({ user: userId }).lean();
   let sent = 0;
   for (const s of subs) {
     try {
-      if (await sendPush({ endpoint: s.endpoint, keys: s.keys! }, "Notificações do The Chat funcionando 🎉")) sent++;
+      if (await sendPush({ endpoint: s.endpoint, keys: s.keys! }, JSON.stringify(payload))) sent++;
     } catch (err) {
       const status = (err as { statusCode?: number }).statusCode;
       // inscrição expirada/removida no navegador: limpa
@@ -47,5 +47,12 @@ pushRouter.post("/notification/send", async (req, res) => {
       else logger.warn({ err }, "falha ao enviar push");
     }
   }
+  return sent;
+}
+
+/** Notificação de teste: só para o próprio usuário. */
+pushRouter.post("/notification/send", async (req, res) => {
+  if (!features.push) throw new HttpError(503, "Push unavailable");
+  const sent = await notifyUser(me(req), { title: "The Chat", body: "Notificações do The Chat funcionando 🎉", url: "/chats" });
   res.status(200).send({ success: true, sucess: true, sent });
 });

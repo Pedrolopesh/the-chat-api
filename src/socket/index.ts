@@ -7,6 +7,7 @@ import { Chat } from "../models/Chat.js";
 let io: Server | null = null;
 
 export const room = (chatId: string) => `chat:${chatId}`;
+export const userRoom = (userId: string) => `user:${userId}`;
 
 /** Usuário participa da conversa? (origem ou destino) */
 export async function isMember(chatId: string, userId: string) {
@@ -18,7 +19,10 @@ export async function isMember(chatId: string, userId: string) {
 /**
  * Tempo real com socket.io:
  *  - conexão exige o JWT (auth.token no handshake);
- *  - o cliente entra só nas salas das conversas de que participa ("join");
+ *  - cada conexão entra na sala do próprio usuário (conversas novas e
+ *    mensagens de qualquer conversa dele chegam por ela);
+ *  - o cliente pode entrar também na sala de uma conversa ("join"), só se
+ *    participar dela;
  *  - mensagens novas são emitidas pelo servidor depois de salvas
  *    (PUT /send/message), nunca repassadas de um cliente para todos.
  */
@@ -37,6 +41,7 @@ export function attachSocket(server: HttpServer, origins: string[]) {
   });
 
   io.on("connection", (socket) => {
+    void socket.join(userRoom(socket.data.userId));
     socket.on("join", async (chatId: unknown, ack?: (ok: boolean) => void) => {
       try {
         const ok = typeof chatId === "string" && /^[a-f\d]{24}$/i.test(chatId) && (await isMember(chatId, socket.data.userId));
@@ -55,8 +60,13 @@ export function attachSocket(server: HttpServer, origins: string[]) {
   return io;
 }
 
-export function emitToChat(chatId: string, event: string, payload: unknown) {
-  io?.to(room(chatId)).emit(event, payload);
+/** Emite para a sala da conversa e para as salas dos participantes (sem duplicar). */
+export function emitToChat(chatId: string, event: string, payload: unknown, memberIds: string[] = []) {
+  io?.to([room(chatId), ...memberIds.map(userRoom)]).emit(event, payload);
+}
+
+export function emitToUser(userId: string, event: string, payload: unknown) {
+  io?.to(userRoom(userId)).emit(event, payload);
 }
 
 export async function closeSocket() {

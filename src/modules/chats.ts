@@ -5,7 +5,9 @@ import { auth, me } from "../middlewares/auth.js";
 import { body, idParam, objectId } from "../middlewares/validate.js";
 import { Chat } from "../models/Chat.js";
 import { PUBLIC_USER_FIELDS, User } from "../models/User.js";
-import { emitToChat } from "../socket/index.js";
+import { emitToChat, emitToUser } from "../socket/index.js";
+import { logger } from "../lib/logger.js";
+import { notifyUser } from "./push.js";
 
 const message = z.object({
   sender: z.enum(["origin", "response"]).optional(),
@@ -50,6 +52,7 @@ chatsRouter.post(
       chatData: req.body.chatData.map((m: z.infer<typeof message>) => ({ ...m, sender: "origin" })),
     });
     await User.updateMany({ _id: { $in: [origin, target] } }, { $addToSet: { chats: chat._id } });
+    emitToUser(target, "chatCreated", { chat_id: String(chat._id) });
     res.send({ success: true, message: "Success to create chat", doc: chat });
   },
 );
@@ -66,7 +69,22 @@ chatsRouter.put(
 
     const msg = { ...req.body.chatData, sender };
     const updated = await Chat.findByIdAndUpdate(chat._id, { $push: { chatData: msg } }, { new: true }).lean();
-    emitToChat(String(chat._id), "messageRecived", { chat_id: String(chat._id), ...msg });
+    const members = [...chat.user_origin, ...chat.user_response].map(String);
+    emitToChat(String(chat._id), "messageRecived", { chat_id: String(chat._id), ...msg }, members);
+
+    // push para o outro participante (sem esperar; falha não afeta o envio)
+    const other = String((sender === "origin" ? chat.user_response : chat.user_origin)[0]);
+    void User.findById(userId)
+      .select("name")
+      .lean()
+      .then((author) =>
+        notifyUser(other, {
+          title: author?.name ?? "The Chat",
+          body: msg.message.length > 120 ? `${msg.message.slice(0, 117)}…` : msg.message,
+          url: `/chats/${String(chat._id)}`,
+        }),
+      )
+      .catch((err) => logger.warn({ err }, "falha no push da mensagem"));
     res.status(200).send({ message: "Mensagem enviada", data: updated });
   },
 );

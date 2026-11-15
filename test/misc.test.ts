@@ -40,3 +40,18 @@ describe("app", () => {
     expect((await api().post("/api/notification/send").set(bearer(a.token))).status).toBe(503);
   });
 });
+
+describe("stats", () => {
+  it("conta usuários confirmados e mensagens", async () => {
+    const { resetStatsCache } = await import("../src/modules/stats.js");
+    const a = await signup("Ana");
+    const b = await signup("Bruno");
+    await api().post("/api/auth/email/start").send({ email: "pendente@test.com" });
+    const chat = await api().post("/api/create/chat").set(bearer(a.token)).send({ user_response: b.id, chatData: [{ message: "oi" }] });
+    await api().put("/api/send/message").set(bearer(b.token)).send({ chat_id: chat.body.doc._id, chatData: { message: "olá" } });
+    resetStatsCache();
+    const res = await api().get("/api/stats");
+    expect(res.body).toEqual({ users: 2, messages: 2 });
+    expect(res.headers["cache-control"]).toContain("max-age=300");
+  });
+});
