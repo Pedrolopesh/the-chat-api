@@ -3,7 +3,8 @@ import multer from "multer";
 import { z } from "zod";
 import { features } from "../config/env.js";
 import { badRequest, forbidden, HttpError, notFound } from "../lib/http-error.js";
-import { ALLOWED_IMAGE_TYPES, sniffImage, uploadAvatar } from "../lib/storage.js";
+import { ALLOWED_IMAGE_TYPES, deleteObject, keyFromUrl, sniffImage, uploadAvatar } from "../lib/storage.js";
+import { logger } from "../lib/logger.js";
 import { auth, me } from "../middlewares/auth.js";
 import { body, idParam } from "../middlewares/validate.js";
 import { PUBLIC_USER_FIELDS, User } from "../models/User.js";
@@ -75,6 +76,10 @@ usersRouter.patch("/upload/user/image", upload.single("photo"), async (req, res)
   if (!type) throw badRequest("photo must be a jpeg, png or webp image");
 
   const url = await uploadAvatar(me(req), file.buffer, type);
-  const user = await User.findByIdAndUpdate(me(req), { img_profile: url }, { new: true }).lean();
+  const previous = await User.findByIdAndUpdate(me(req), { img_profile: url }).select("img_profile").lean();
+  // apaga o avatar anterior do bucket (só se for um gerado por nós)
+  const oldKey = previous?.img_profile ? keyFromUrl(previous.img_profile) : null;
+  if (oldKey) void deleteObject(oldKey).catch((err) => logger.warn({ err }, "falha ao apagar avatar antigo"));
+  const user = await User.findById(me(req)).lean();
   res.send({ success: true, sucess: true, message: "succes on update user image profile", data: user });
 });

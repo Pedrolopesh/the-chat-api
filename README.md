@@ -38,7 +38,8 @@ Todas sob `/api`. As marcadas com 🔒 exigem `Authorization: Bearer <token>`.
 | GET 🔒 | `/user/:id` | perfil (e-mail só no próprio) |
 | PUT 🔒 | `/update/user/:id` | `{ name }` — só o próprio |
 | PATCH 🔒 | `/update/user/image/:id` | `{ img_profile }` (URL https) — só o próprio |
-| PATCH 🔒 | `/upload/user/image` | multipart `photo` (jpeg/png/webp, até 2 MB) → bucket |
+| PATCH 🔒 | `/upload/user/image` | multipart `photo` (jpeg/png/webp, até 2 MB) → bucket; apaga o avatar anterior |
+| GET | `/files/<chave>` | foto de perfil lida do bucket privado (só chaves de avatar) |
 | POST 🔒 | `/create/chat` | `{ user_response, chatData? }` |
 | PUT 🔒 | `/send/message` | `{ chat_id, chatData: { message, timestamp? } }` |
 | GET 🔒 | `/list/chats` | conversas do usuário |
@@ -93,6 +94,22 @@ Backup diário do Mongo para o bucket: `deploy/backup.sh` (cron).
 | `JWT_SECRET`, `MONGO_ROOT_PASSWORD` | obrigatórios |
 | `RESEND_API_KEY` | e-mail com o código de acesso |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | push |
-| `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_URL` | avatares e backups |
+| `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | bucket R2 `the-chat` (chave `the-chat-api-rw`, só esse bucket): avatares e backups |
 
-Variáveis (não secretas): `CORS_ORIGINS`, `APP_URL`, `MAIL_FROM`, `API_BIND`, `API_PORT`.
+Variáveis (não secretas): `CORS_ORIGINS`, `APP_URL`, `MAIL_FROM`, `PUBLIC_API_URL`, `API_BIND`, `API_PORT` e, se houver CDN, `S3_PUBLIC_URL`.
+
+### Bucket
+
+Cloudflare R2, bucket **privado** `the-chat`:
+
+| Prefixo | Conteúdo | Retenção |
+|---|---|---|
+| `the-chat/avatars/<userId>/<uuid>.<ext>` | fotos de perfil, servidas por `GET /api/files/...` | enquanto for a foto atual |
+| `the-chat/backups/thechat-<data>.archive.gz` | `mongodump --gzip` diário (`deploy/backup.sh`) | 30 dias (regra de ciclo de vida `backups-30-dias`) |
+
+Restaurar um backup:
+
+```bash
+aws s3 cp s3://the-chat/the-chat/backups/<arquivo> - --endpoint-url "$S3_ENDPOINT" \
+  | docker exec -i the-chat-mongo mongorestore --archive --gzip --drop -u thechat -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin
+```

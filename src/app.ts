@@ -11,6 +11,7 @@ import { authRouter } from "./modules/auth.js";
 import { chatsRouter } from "./modules/chats.js";
 import { pushRouter } from "./modules/push.js";
 import { statsRouter } from "./modules/stats.js";
+import { filesRouter } from "./modules/files.js";
 import { usersRouter } from "./modules/users.js";
 
 export function createApp() {
@@ -44,6 +45,7 @@ export function createApp() {
   // rotas públicas primeiro; cada router protegido aplica o próprio auth
   api.use(authRouter);
   api.use(statsRouter);
+  api.use(filesRouter);
   api.use(pushRouter);
   api.use(usersRouter);
   api.use(chatsRouter);

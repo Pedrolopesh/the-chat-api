@@ -45,8 +45,13 @@ const schema = z.object({
   S3_BUCKET: z.string().optional(),
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
-  /** URL pública do bucket (domínio do R2 ou CDN) — base dos links das imagens */
+  /**
+   * Opcional: domínio público do bucket (CDN). Sem ele o bucket fica
+   * privado e as imagens são servidas pela própria API em /api/files/...
+   */
   S3_PUBLIC_URL: z.string().url().optional(),
+  /** URL pública desta API (base dos links das imagens servidas por ela) */
+  PUBLIC_API_URL: z.string().url().default("http://localhost:3333"),
   S3_PREFIX: z.string().default("the-chat/avatars"),
 });
 
@@ -66,7 +71,5 @@ export const env = loadEnv();
 export const features = {
   mail: Boolean(env.RESEND_API_KEY),
   push: Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY),
-  storage: Boolean(
-    env.S3_ENDPOINT && env.S3_BUCKET && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY && env.S3_PUBLIC_URL,
-  ),
+  storage: Boolean(env.S3_ENDPOINT && env.S3_BUCKET && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY),
 };
