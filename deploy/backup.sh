@@ -4,7 +4,12 @@
 #   15 4 * * * /opt/the-chat/backup.sh >> /var/log/the-chat-backup.log 2>&1
 set -euo pipefail
 cd "$(dirname "$0")"
-set -a; . ./.env; set +a
+# lê só as chaves necessárias (não executa o .env como script)
+get() { grep -E "^$1=" .env | head -1 | cut -d= -f2-; }
+MONGO_ROOT_PASSWORD=$(get MONGO_ROOT_PASSWORD)
+S3_ENDPOINT=$(get S3_ENDPOINT); S3_BUCKET=$(get S3_BUCKET); S3_REGION=$(get S3_REGION)
+S3_ACCESS_KEY_ID=$(get S3_ACCESS_KEY_ID); S3_SECRET_ACCESS_KEY=$(get S3_SECRET_ACCESS_KEY)
+S3_BACKUP_PREFIX=$(get S3_BACKUP_PREFIX)
 
 stamp=$(date -u +%Y%m%d-%H%M)
 key="${S3_BACKUP_PREFIX:-the-chat/backups}/thechat-${stamp}.archive.gz"

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { loadEnv } from "../src/config/env.js";
 import { escapeHtml } from "../src/lib/escape-html.js";
 import { signToken, verifyToken } from "../src/lib/jwt.js";
-import { recoveryEmailHtml, sendRecoveryEmail } from "../src/lib/mailer.js";
+import { loginCodeEmail, sendLoginCode } from "../src/lib/mailer.js";
 import { sendPush } from "../src/lib/push.js";
 import { sniffImage, uploadAvatar } from "../src/lib/storage.js";
 
@@ -23,7 +23,9 @@ describe("lib", () => {
 
   it("escapa HTML no e-mail", () => {
     expect(escapeHtml(`<a href="x">'&`)).toBe("&lt;a href=&quot;x&quot;&gt;&#39;&amp;");
-    expect(recoveryEmailHtml("<script>", "123456", "https://x")).not.toContain("<script>");
+    const mail = loginCodeEmail("123456");
+    expect(mail.text).toContain("123456");
+    expect(mail.html).toContain("123456");
   });
 
   it("reconhece imagens pela assinatura", () => {
@@ -34,7 +36,7 @@ describe("lib", () => {
   });
 
   it("integrações desligadas sem configuração", async () => {
-    expect(await sendRecoveryEmail("a@b.com", "A", "123456")).toBe(false);
+    expect(await sendLoginCode("a@b.com", "123456")).toBe(false);
     expect(await sendPush({ endpoint: "https://x", keys: { p256dh: "a", auth: "b" } }, "x")).toBe(false);
     await expect(uploadAvatar("u", Buffer.from(""), "image/png")).rejects.toThrow(/storage/);
   });

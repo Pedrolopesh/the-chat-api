@@ -11,8 +11,8 @@ const common = {
 /** limite geral da API */
 export const apiLimiter = rateLimit({ ...common, windowMs: 60_000, limit: 300 });
 
-/** login/cadastro: contra força bruta */
+/** pedido e confirmação de código: contra abuso e força bruta */
 export const authLimiter = rateLimit({ ...common, windowMs: 15 * 60_000, limit: 20 });
 
-/** recuperação de senha: e-mails e tentativas de código */
-export const recoveryLimiter = rateLimit({ ...common, windowMs: 15 * 60_000, limit: 10 });
+
+

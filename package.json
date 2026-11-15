@@ -21,7 +21,6 @@
   "license": "ISC",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1169.0",
-    "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "express": "^5.3.0",
     "express-rate-limit": "^8.7.4",
@@ -29,7 +28,6 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.24.9",
     "multer": "^2.5.0",
-    "nodemailer": "^10.5.0",
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
     "socket.io": "^4.8.4",
@@ -43,7 +41,6 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.3.0",
     "@types/node": "^26.6.6",
-    "@types/nodemailer": "^8.0.2",
     "@types/supertest": "^7.2.1",
     "@types/web-push": "^3.6.4",
     "@vitest/coverage-v8": "^5.1.0",

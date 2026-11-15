@@ -30,7 +30,7 @@ export const usersRouter = Router();
 usersRouter.use(auth);
 
 usersRouter.get("/list/users", async (req, res) => {
-  const users = await User.find({ status: { $ne: "blocked" } })
+  const users = await User.find({ status: { $ne: "blocked" }, emailVerifiedAt: { $ne: null } })
     .select(PUBLIC_USER_FIELDS)
     .sort({ name: 1 })
     .limit(500)

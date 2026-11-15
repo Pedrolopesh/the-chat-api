@@ -1,11 +1,12 @@
 # The Chat — API
 
-API do [The Chat](https://github.com/Pedrolopesh/the-chat-app): cadastro,
-login, conversas entre usuários em tempo real (socket.io) e notificações push.
+API do [The Chat](https://github.com/Pedrolopesh/the-chat-app): entrada sem
+senha (código por e-mail), conversas entre usuários em tempo real (socket.io) e notificações push.
 
 Node 22 · TypeScript · Express 5 · MongoDB (Mongoose) · socket.io 4 · Zod.
 
 Produção: `https://thechat-api.pedrolopes.tech` (só um ambiente, produção).
+Front: `https://thechat.pedrolopes.tech`.
 
 ## Rodando localmente
 
@@ -30,11 +31,8 @@ Todas sob `/api`. As marcadas com 🔒 exigem `Authorization: Bearer <token>`.
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/` | status |
-| POST | `/signup` | `{ name, email, password }` → `{ _id, token }` (senha ≥ 8) |
-| POST | `/login` | `{ email, password }` → `{ user_id, token }` |
-| POST | `/forgot/pass` | `{ email }` — envia código de 6 dígitos (15 min, 5 tentativas) |
-| POST | `/confirm/recovery/code` | `{ email, code }` |
-| PATCH | `/update/user/password` | `{ email, code, password, confirmPassword }` |
+| POST | `/auth/email/start` | `{ email, name? }` → `202` sempre; envia o código (conta nova nasce pendente) |
+| POST | `/auth/email/confirm` | `{ email, code }` → `{ user_id, token, isNew }` |
 | GET | `/push/key` | chave pública VAPID |
 | GET 🔒 | `/list/users` | usuários (só `_id`, `name`, `img_profile`) |
 | GET 🔒 | `/user/:id` | perfil (e-mail só no próprio) |
@@ -65,11 +63,10 @@ sala da conversa.
 ## Segurança
 
 - Segredos só por variável de ambiente, validados na subida (JWT ≥ 32 caracteres).
-- Senhas com bcrypt (custo 12); login e recuperação não revelam se o e-mail existe.
-- Código de recuperação aleatório (`crypto.randomInt`), guardado só como hash, com validade, limite de tentativas e uso único.
+- Sem senha: entrada por código de 6 dígitos enviado pelo Resend (`crypto.randomInt`), guardado só como hash, válido por 15 min, 5 tentativas, uso único e no máximo um e-mail por minuto. A resposta é a mesma exista ou não a conta; contas pendentes não aparecem para os outros.
 - Autorização por dono: só participantes leem/escrevem na conversa; cada um só altera o próprio perfil; o remetente da mensagem vem do token.
 - Validação de entrada com Zod (bloqueia operadores do Mongo), limite de corpo, rate limit geral e mais restrito em login/recuperação.
-- Helmet, CORS restrito às origens do front, erros sem detalhes internos, logs sem senha/token.
+- Helmet, CORS restrito às origens do front, erros sem detalhes internos, logs sem token nem código.
 - Upload em memória, até 2 MB, tipo conferido pela assinatura do arquivo.
 - Container sem root, sistema de arquivos somente leitura, sem capabilities; Mongo em rede interna sem porta publicada.
 
@@ -94,8 +91,8 @@ Backup diário do Mongo para o bucket: `deploy/backup.sh` (cron).
 |---|---|
 | `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS` | acesso de deploy |
 | `JWT_SECRET`, `MONGO_ROOT_PASSWORD` | obrigatórios |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | e-mail de recuperação |
+| `RESEND_API_KEY` | e-mail com o código de acesso |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | push |
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_URL` | avatares e backups |
 
-Variáveis (não secretas): `CORS_ORIGINS`, `APP_URL`, `API_BIND`, `API_PORT`.
+Variáveis (não secretas): `CORS_ORIGINS`, `APP_URL`, `MAIL_FROM`, `API_BIND`, `API_PORT`.

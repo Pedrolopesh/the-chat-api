@@ -27,16 +27,14 @@ const schema = z.object({
 
   /** origens do front liberadas no CORS e no socket (separadas por vírgula) */
   CORS_ORIGINS: csv,
-  /** URL pública do front, usada no link do e-mail de recuperação */
+  /** URL pública do front (aparece no e-mail) */
   APP_URL: z.string().url().default("http://localhost:8080"),
   /** quantos proxies confiáveis existem na frente da API (nginx = 1) */
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
 
-  SMTP_HOST: z.string().optional(),
-  SMTP_PORT: z.coerce.number().int().positive().default(587),
-  SMTP_USER: z.string().optional(),
-  SMTP_PASS: z.string().optional(),
-  MAIL_FROM: z.string().optional(),
+  /** e-mail do código de acesso (https://resend.com) */
+  RESEND_API_KEY: z.string().optional(),
+  MAIL_FROM: z.string().default("The Chat <no-reply@pedrolopes.tech>"),
 
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
@@ -66,7 +64,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
 export const env = loadEnv();
 
 export const features = {
-  mail: Boolean(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS && env.MAIL_FROM),
+  mail: Boolean(env.RESEND_API_KEY),
   push: Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY),
   storage: Boolean(
     env.S3_ENDPOINT && env.S3_BUCKET && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY && env.S3_PUBLIC_URL,
