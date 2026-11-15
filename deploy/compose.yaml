@@ -1,0 +1,61 @@
+# Produção do The Chat na VPS — ambiente totalmente separado dos outros
+# serviços: projeto, rede, volume e containers prefixados com "the-chat".
+#
+# mongo → rede interna (sem saída para a internet, sem porta publicada).
+# api   → única porta publicada, presa a API_BIND (padrão 127.0.0.1), ou
+#         seja, nunca exposta direto na internet: só o proxy reverso (nginx,
+#         que termina o TLS de thechat-api.pedrolopes.tech) chega nela.
+name: the-chat
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: the-chat-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: thechat
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?defina MONGO_ROOT_PASSWORD}
+    command: ["--wiredTigerCacheSizeGB", "0.25"]
+    volumes:
+      - the-chat-mongo-data:/data/db
+    networks: [db]
+    mem_limit: 512m
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: ${API_IMAGE:-ghcr.io/pedrolopesh/the-chat-api:latest}
+    container_name: the-chat-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 3333
+      MONGO_URL: mongodb://thechat:${MONGO_ROOT_PASSWORD}@mongo:27017/thechat?authSource=admin
+    ports:
+      - "${API_BIND:-127.0.0.1}:${API_PORT:-3004}:3333"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks: [db, edge]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 256m
+    pids_limit: 128
+
+networks:
+  db:
+    name: the-chat-db
+    internal: true
+  edge:
+    name: the-chat-edge
+
+volumes:
+  the-chat-mongo-data:
+    name: the-chat-mongo-data

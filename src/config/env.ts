@@ -1,0 +1,74 @@
+import { z } from "zod";
+
+/**
+ * Configuração lida (e validada) uma vez só. Se faltar algo obrigatório a
+ * API nem sobe — melhor falhar no deploy do que rodar com segredo vazio.
+ * Integrações opcionais (e-mail, push, bucket) ficam desligadas quando a
+ * configuração delas não está completa.
+ */
+const csv = z
+  .string()
+  .default("")
+  .transform((s) =>
+    s
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean),
+  );
+
+const schema = z.object({
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  PORT: z.coerce.number().int().positive().default(3333),
+  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+
+  MONGO_URL: z.string().min(1),
+  JWT_SECRET: z.string().min(32, "JWT_SECRET precisa de pelo menos 32 caracteres"),
+  JWT_EXPIRES_IN: z.string().default("7d"),
+
+  /** origens do front liberadas no CORS e no socket (separadas por vírgula) */
+  CORS_ORIGINS: csv,
+  /** URL pública do front, usada no link do e-mail de recuperação */
+  APP_URL: z.string().url().default("http://localhost:8080"),
+  /** quantos proxies confiáveis existem na frente da API (nginx = 1) */
+  TRUST_PROXY: z.coerce.number().int().min(0).default(0),
+
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  MAIL_FROM: z.string().optional(),
+
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().default("mailto:contato@pedrolopes.tech"),
+
+  S3_ENDPOINT: z.string().url().optional(),
+  S3_REGION: z.string().default("auto"),
+  S3_BUCKET: z.string().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
+  /** URL pública do bucket (domínio do R2 ou CDN) — base dos links das imagens */
+  S3_PUBLIC_URL: z.string().url().optional(),
+  S3_PREFIX: z.string().default("the-chat/avatars"),
+});
+
+export type Env = z.infer<typeof schema>;
+
+export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
+  const parsed = schema.safeParse(source);
+  if (!parsed.success) {
+    const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    throw new Error(`Configuração inválida: ${issues}`);
+  }
+  return parsed.data;
+}
+
+export const env = loadEnv();
+
+export const features = {
+  mail: Boolean(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS && env.MAIL_FROM),
+  push: Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY),
+  storage: Boolean(
+    env.S3_ENDPOINT && env.S3_BUCKET && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY && env.S3_PUBLIC_URL,
+  ),
+};
