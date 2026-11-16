@@ -1,0 +1,166 @@
+name: CI/CD
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  IMAGE: ghcr.io/pedrolopesh/the-chat-api
+
+jobs:
+  check:
+    name: lint, tipos e testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:cov
+      - run: npm audit --omit=dev --audit-level=high
+
+  secrets-scan:
+    name: segredos no código
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  image:
+    name: imagem Docker
+    needs: [check]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      ref: ${{ steps.ref.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - id: ref
+        run: echo "ref=${IMAGE}:sha-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ${{ steps.ref.outputs.ref }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: smoke test da stack de produção (compose + imagem)
+        run: |
+          umask 077
+          printf 'JWT_SECRET=%s\nMONGO_ROOT_PASSWORD=%s\nAPI_PORT=3404\n' \
+            "$(openssl rand -hex 32)" "$(openssl rand -hex 24)" > deploy/.env
+          export API_IMAGE="${{ steps.ref.outputs.ref }}"
+          docker compose -p smoke -f deploy/compose.yaml --env-file deploy/.env up -d
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:3404/health && break; sleep 2; done
+          curl -fsS -X POST http://127.0.0.1:3404/api/auth/email/start -H 'content-type: application/json' \
+            -d '{"email":"smoke@test.com"}' | grep -q '"success":true'
+          docker compose -p smoke -f deploy/compose.yaml --env-file deploy/.env down -v
+          rm deploy/.env
+      - name: scan de vulnerabilidades (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.ref.outputs.ref }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: publicar no GHCR
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker tag "${{ steps.ref.outputs.ref }}" "${IMAGE}:latest"
+          docker push "${{ steps.ref.outputs.ref }}"
+          docker push "${IMAGE}:latest"
+
+  deploy:
+    name: deploy em produção
+    needs: [image, secrets-scan]
+    # Só roda quando o deploy automático estiver configurado (variável DEPLOY_ENABLED=true e os
+    # secrets da VPS cadastrados). Sem isso, o deploy é feito na VPS com os arquivos de deploy/.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://thechat-api.pedrolopes.tech/health
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: chave SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          echo "${{ secrets.VPS_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+
+      - name: gerar .env a partir dos secrets
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          MONGO_ROOT_PASSWORD: ${{ secrets.MONGO_ROOT_PASSWORD }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          MAIL_FROM: ${{ vars.MAIL_FROM }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          S3_PUBLIC_URL: ${{ vars.S3_PUBLIC_URL }}
+          PUBLIC_API_URL: ${{ vars.PUBLIC_API_URL }}
+          CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
+          APP_URL: ${{ vars.APP_URL }}
+          API_BIND: ${{ vars.API_BIND }}
+          API_PORT: ${{ vars.API_PORT }}
+        run: |
+          umask 077
+          : > deploy/.env
+          for k in JWT_SECRET MONGO_ROOT_PASSWORD RESEND_API_KEY MAIL_FROM \
+                   VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY S3_ENDPOINT S3_BUCKET S3_ACCESS_KEY_ID \
+                   S3_SECRET_ACCESS_KEY S3_PUBLIC_URL PUBLIC_API_URL CORS_ORIGINS APP_URL API_BIND API_PORT; do
+            v="${!k}"
+            [ -n "$v" ] && printf '%s=%s\n' "$k" "$v" >> deploy/.env
+          done
+          printf 'TRUST_PROXY=1\nLOG_LEVEL=info\n' >> deploy/.env
+          grep -q '^JWT_SECRET=' deploy/.env && grep -q '^MONGO_ROOT_PASSWORD=' deploy/.env
+
+      - name: enviar arquivos e publicar
+        env:
+          HOST: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+          DIR: /opt/the-chat
+        run: |
+          SSH="ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
+          scp -i ~/.ssh/deploy -o IdentitiesOnly=yes deploy/compose.yaml deploy/deploy.sh deploy/backup.sh deploy/.env "$HOST:$DIR/"
+          echo "${{ secrets.GITHUB_TOKEN }}" | $SSH "$HOST" "docker login ghcr.io -u ${{ github.actor }} --password-stdin >/dev/null"
+          $SSH "$HOST" "chmod 600 $DIR/.env && $DIR/deploy.sh ${{ needs.image.outputs.ref }}; s=\$?; docker logout ghcr.io >/dev/null; exit \$s"
+
+      - name: smoke test público
+        run: |
+          for i in $(seq 1 10); do
+            curl -fsS https://thechat-api.pedrolopes.tech/health && exit 0
+            sleep 5
+          done
+          exit 1
+
+      - name: limpar chave
+        if: always()
+        run: rm -f ~/.ssh/deploy deploy/.env
