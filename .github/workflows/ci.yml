@@ -94,7 +94,9 @@ jobs:
   deploy:
     name: deploy em produção
     needs: [image, secrets-scan]
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    # Só roda quando o deploy automático estiver configurado (variável DEPLOY_ENABLED=true e os
+    # secrets da VPS cadastrados). Sem isso, o deploy é feito na VPS com os arquivos de deploy/.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment:
       name: production
