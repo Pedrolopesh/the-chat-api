@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { createHmac } from "node:crypto";
 import { z } from "zod";
 import { badRequest, forbidden, notFound } from "../lib/http-error.js";
 import { auth, me } from "../middlewares/auth.js";
@@ -8,6 +9,43 @@ import { PUBLIC_USER_FIELDS, User } from "../models/User.js";
 import { emitToChat, emitToUser } from "../socket/index.js";
 import { logger } from "../lib/logger.js";
 import { notifyUser } from "./push.js";
+
+/**
+ * Ghost Bridge webhook — quando o destinatário é o usuário claude-pedro,
+ * encaminha a mensagem para um serviço local que executa claude-ghost.
+ * Configurado via env: GHOST_WEBHOOK_URL e GHOST_WEBHOOK_SECRET.
+ */
+const GHOST_WEBHOOK_URL = process.env.GHOST_WEBHOOK_URL;
+const GHOST_WEBHOOK_SECRET = process.env.GHOST_WEBHOOK_SECRET;
+const CLAUDE_PEDRO_ID = process.env.CLAUDE_PEDRO_USER_ID;
+
+async function notifyGhostBridge(chatId: string, message: string) {
+  if (!GHOST_WEBHOOK_URL || !GHOST_WEBHOOK_SECRET) {
+    logger.warn({ chatId }, "ghost bridge ignorado: GHOST_WEBHOOK_URL ou GHOST_WEBHOOK_SECRET não configurados");
+    return;
+  }
+  const payload = JSON.stringify({ chat_id: chatId, message });
+  const signature = createHmac("sha256", GHOST_WEBHOOK_SECRET).update(payload).digest("hex");
+  try {
+    const res = await fetch(GHOST_WEBHOOK_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Ghost-Signature": signature,
+      },
+      body: payload,
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      logger.warn({ chatId, status: res.status, body: text.slice(0, 200) }, "ghost bridge webhook retornou erro");
+      return;
+    }
+    logger.info({ chatId }, "ghost bridge webhook enviado");
+  } catch (err) {
+    logger.warn({ err, chatId }, "falha ao enviar ghost bridge webhook");
+  }
+}
 
 const message = z.object({
   sender: z.enum(["origin", "response"]).optional(),
@@ -85,6 +123,12 @@ chatsRouter.put(
         }),
       )
       .catch((err) => logger.warn({ err }, "falha no push da mensagem"));
+
+    // Ghost Bridge: se o destinatário é claude-pedro, encaminhar para o bridge local
+    if (CLAUDE_PEDRO_ID && other === CLAUDE_PEDRO_ID) {
+      void notifyGhostBridge(String(chat._id), msg.message);
+    }
+
     res.status(200).send({ message: "Mensagem enviada", data: updated });
   },
 );
