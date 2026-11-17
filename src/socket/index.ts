@@ -55,6 +55,28 @@ export function attachSocket(server: HttpServer, origins: string[]) {
     socket.on("leave", (chatId: unknown) => {
       if (typeof chatId === "string") void socket.leave(room(chatId));
     });
+
+    // Typing indicators: broadcast to chat room except sender
+    socket.on("typing:start", async (chatId: unknown) => {
+      if (typeof chatId !== "string" || !/^[a-f\d]{24}$/i.test(chatId)) return;
+      try {
+        if (await isMember(chatId, socket.data.userId)) {
+          socket.to(room(chatId)).emit("typing:start", { chat_id: chatId, user_id: socket.data.userId });
+        }
+      } catch (err) {
+        logger.warn({ err }, "falha no typing:start");
+      }
+    });
+    socket.on("typing:stop", async (chatId: unknown) => {
+      if (typeof chatId !== "string" || !/^[a-f\d]{24}$/i.test(chatId)) return;
+      try {
+        if (await isMember(chatId, socket.data.userId)) {
+          socket.to(room(chatId)).emit("typing:stop", { chat_id: chatId, user_id: socket.data.userId });
+        }
+      } catch (err) {
+        logger.warn({ err }, "falha no typing:stop");
+      }
+    });
   });
 
   return io;
