@@ -12,9 +12,12 @@ up() {
 }
 
 healthy() {
-  local port; port=$(grep -E '^API_PORT=' .env | cut -d= -f2); port=${port:-3004}
+  # a API escuta em API_BIND:API_PORT (na VPS, o IP interno do Docker, não 127.0.0.1)
+  local host port
+  host=$(grep -E '^API_BIND=' .env | cut -d= -f2 || true); host=${host:-127.0.0.1}
+  port=$(grep -E '^API_PORT=' .env | cut -d= -f2 || true); port=${port:-3004}
   for _ in $(seq 1 30); do
-    if curl -fsS "http://127.0.0.1:${port}/health" >/dev/null 2>&1; then return 0; fi
+    if curl -fsS "http://${host}:${port}/health" >/dev/null 2>&1; then return 0; fi
     sleep 2
   done
   return 1

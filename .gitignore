@@ -9,3 +9,4 @@ coverage
 .idea
 .vscode
 ghost-bridge.mjs
+ghost-bridge-wrapper.sh

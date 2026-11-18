@@ -94,8 +94,7 @@ jobs:
   deploy:
     name: deploy em produção
     needs: [image, secrets-scan]
-    # Só roda quando o deploy automático estiver configurado (variável DEPLOY_ENABLED=true e os
-    # secrets da VPS cadastrados). Sem isso, o deploy é feito na VPS com os arquivos de deploy/.
+    # Só roda com a variável do repositório DEPLOY_ENABLED=true e os 4 secrets de acesso à VPS.
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment:
@@ -105,53 +104,38 @@ jobs:
       group: deploy-production
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
-
       - name: chave SSH
         run: |
           install -m 700 -d ~/.ssh
           echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
           echo "${{ secrets.VPS_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
 
-      - name: gerar .env a partir dos secrets
+      # Os segredos da API (JWT, banco, e-mail, webhook) ficam só no .env da VPS e nunca passam
+      # pelo GitHub. A chave abaixo só consegue pedir a publicação de uma imagem sha-<12 hex>
+      # desta API: o resto é decidido por deploy/ci-deploy.sh, na VPS.
+      # Só estas chaves opcionais (R2 e push) viajam pelo GitHub; deploy/ci-deploy.sh na VPS aceita
+      # apenas uma lista fechada e nunca mexe em JWT, banco ou no restante do .env.
+      - name: enviar configurações opcionais (R2 e push) para a VPS
         env:
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          MONGO_ROOT_PASSWORD: ${{ secrets.MONGO_ROOT_PASSWORD }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          MAIL_FROM: ${{ vars.MAIL_FROM }}
-          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
-          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
           S3_BUCKET: ${{ secrets.S3_BUCKET }}
           S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
           S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           S3_PUBLIC_URL: ${{ vars.S3_PUBLIC_URL }}
-          PUBLIC_API_URL: ${{ vars.PUBLIC_API_URL }}
-          CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
-          APP_URL: ${{ vars.APP_URL }}
-          API_BIND: ${{ vars.API_BIND }}
-          API_PORT: ${{ vars.API_PORT }}
         run: |
-          umask 077
-          : > deploy/.env
-          for k in JWT_SECRET MONGO_ROOT_PASSWORD RESEND_API_KEY MAIL_FROM \
-                   VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY S3_ENDPOINT S3_BUCKET S3_ACCESS_KEY_ID \
-                   S3_SECRET_ACCESS_KEY S3_PUBLIC_URL PUBLIC_API_URL CORS_ORIGINS APP_URL API_BIND API_PORT; do
+          for k in S3_ENDPOINT S3_BUCKET S3_ACCESS_KEY_ID S3_SECRET_ACCESS_KEY \
+                   VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY S3_PUBLIC_URL; do
             v="${!k}"
-            [ -n "$v" ] && printf '%s=%s\n' "$k" "$v" >> deploy/.env
-          done
-          printf 'TRUST_PROXY=1\nLOG_LEVEL=info\n' >> deploy/.env
-          grep -q '^JWT_SECRET=' deploy/.env && grep -q '^MONGO_ROOT_PASSWORD=' deploy/.env
+            if [ -n "$v" ]; then printf '%s=%s\n' "$k" "$v"; fi
+          done | ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" sync-env
 
-      - name: enviar arquivos e publicar
-        env:
-          HOST: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
-          DIR: /opt/the-chat
+      - name: publicar imagem na VPS
         run: |
-          SSH="ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
-          scp -i ~/.ssh/deploy -o IdentitiesOnly=yes deploy/compose.yaml deploy/deploy.sh deploy/backup.sh deploy/.env "$HOST:$DIR/"
-          echo "${{ secrets.GITHUB_TOKEN }}" | $SSH "$HOST" "docker login ghcr.io -u ${{ github.actor }} --password-stdin >/dev/null"
-          $SSH "$HOST" "chmod 600 $DIR/.env && $DIR/deploy.sh ${{ needs.image.outputs.ref }}; s=\$?; docker logout ghcr.io >/dev/null; exit \$s"
+          ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" "${{ needs.image.outputs.ref }}"
 
       - name: smoke test público
         run: |
@@ -163,4 +147,4 @@ jobs:
 
       - name: limpar chave
         if: always()
-        run: rm -f ~/.ssh/deploy deploy/.env
+        run: rm -f ~/.ssh/deploy
