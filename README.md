@@ -79,24 +79,31 @@ sala da conversa.
 Pipeline em `.github/workflows/ci.yml`:
 
 1. **PR e push:** lint, tipos, testes com cobertura, `npm audit`, Gitleaks, build da imagem, smoke test da stack (`deploy/compose.yaml`) e Trivy.
-2. **Push na `master`:** publica a imagem no GHCR (`sha-<commit>` e `latest`), gera o `.env` a partir dos secrets, copia `deploy/` para `/opt/the-chat` na VPS e roda `deploy.sh` (sobe, espera o `/health` e volta para a imagem anterior se falhar). No fim, checa `https://thechat-api.pedrolopes.tech/health`.
+2. **Push na `master`:** publica a imagem no GHCR (`sha-<12 hex do commit>` e `latest`) e, com `DEPLOY_ENABLED=true`, pede à VPS que a publique. A VPS roda `deploy.sh` (sobe a imagem, espera o `/health` e volta para a anterior se falhar). No fim, o pipeline checa `https://thechat-api.pedrolopes.tech/health`.
+
+**Os segredos da API ficam só na VPS**, em `/opt/the-chat/.env` (`chmod 600`), e nunca passam pelo GitHub. A chave SSH do pipeline está no `authorized_keys` com comando forçado: ela só executa `deploy/ci-deploy.sh`, que aceita apenas uma tag `ghcr.io/pedrolopesh/the-chat-api:sha-<12 hex>` e recusa qualquer outra coisa.
 
 Na VPS tudo é isolado dos outros serviços: projeto `the-chat`, redes
 `the-chat-db` (interna) e `the-chat-edge`, volume `the-chat-mongo-data`, API
-em `127.0.0.1:3004` atrás do nginx (`deploy/nginx-thechat-api.conf`).
+em `API_BIND:API_PORT` (na VPS, `172.17.0.1:3004`) atrás do nginx (`deploy/nginx-thechat-api.conf`).
 Backup diário do Mongo para o bucket: `deploy/backup.sh` (cron).
 
-### Secrets do repositório (environment `production`)
+### Configuração do repositório (environment `production`)
 
-| Secret | Uso |
+| Item | Uso |
 |---|---|
-| `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS` | acesso de deploy |
-| `JWT_SECRET`, `MONGO_ROOT_PASSWORD` | obrigatórios |
-| `RESEND_API_KEY` | e-mail com o código de acesso |
-| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | push |
-| `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | bucket R2 `the-chat` (chave `the-chat-api-rw`, só esse bucket): avatares e backups |
+| variável `DEPLOY_ENABLED=true` | liga o job de deploy |
+| secrets `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS` | acesso (a chave só publica imagem e sincroniza as chaves do R2/push) |
+| secrets `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | enviados à VPS pelo `sync-env` |
 
-Variáveis (não secretas): `CORS_ORIGINS`, `APP_URL`, `MAIL_FROM`, `PUBLIC_API_URL`, `API_BIND`, `API_PORT` e, se houver CDN, `S3_PUBLIC_URL`.
+Segredos do R2 e do push (`S3_*`, `VAPID_*`) ficam como secrets do environment `production` e o job de
+deploy os envia à VPS com `sync-env`, que só aceita essas chaves (lista fechada em `deploy/ci-deploy.sh`).
+
+Todo o resto da API (`JWT_SECRET`, `MONGO_ROOT_PASSWORD`, `RESEND_API_KEY`, `CORS_ORIGINS`, `APP_URL`,
+`PUBLIC_API_URL`, `API_BIND`, `API_PORT`, `GHOST_WEBHOOK_*` etc.) fica só no `/opt/the-chat/.env` da VPS. Mudanças em `deploy/compose.yaml` não são enviadas pelo
+pipeline: copie o arquivo para a VPS (`/opt/the-chat/`) quando mudar.
+O bucket R2 `the-chat` (chave `the-chat-api-rw`, só esse bucket) guarda avatares e backups.
+
 
 ### Bucket
 
